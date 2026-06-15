@@ -59,13 +59,20 @@ def list_transcripts(
 ):
     token = _resolve_token(x_kensho_refresh_token)
     try:
-        events = _get_client(token).get_all_transcripts_for_ticker(
+        result = _get_client(token).get_all_transcripts_for_ticker(
             ticker=ticker,
             start_date=start_date,
             end_date=end_date,
             include_conferences=include_conferences,
         )
-        return {"ticker": ticker.upper(), "count": len(events), "events": events}
+        events = result["events"]
+        return {
+            "ticker": ticker.upper(),
+            "count": len(events),
+            "events": events,
+            "company": result.get("company"),
+            "conference_permission": result.get("conference_permission", True),
+        }
     except HTTPException:
         raise
     except Exception as exc:

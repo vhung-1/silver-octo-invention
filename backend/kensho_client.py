@@ -123,12 +123,14 @@ class KenshoClient:
         company_id: int,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-    ) -> list[dict]:
+    ) -> tuple[list[dict], bool]:
         """
-        Fetch key developments across transcript-bearing categories and
-        return a flat list with transcript_type populated.
+        Fetch key developments across transcript-bearing categories.
+        Returns (events, has_permission).
+        has_permission=False means the account lacks the key_devs entitlement.
         """
         events: list[dict] = []
+        has_permission = True
         for category in TRANSCRIPT_CATEGORIES:
             try:
                 data = self.get_key_devs(
@@ -142,9 +144,11 @@ class KenshoClient:
                     for item in items:
                         item["transcript_type"] = cat_name.replace("_", " ").title()
                         events.append(item)
-            except httpx.HTTPStatusError:
-                pass
-        return events
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 403:
+                    has_permission = False
+                # skip other HTTP errors per category
+        return events, has_permission
 
     # ------------------------------------------------------------------
     # Transcript fetch
@@ -184,11 +188,11 @@ class KenshoClient:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         include_conferences: bool = True,
-    ) -> list[dict]:
+    ) -> dict:
         """
         High-level method: resolves ticker, fetches earnings + (optionally)
-        conference transcripts, returns sorted list of transcript metadata.
-        Does NOT fetch transcript bodies — call get_transcript(key_dev_id) per item.
+        conference transcripts. Returns:
+          {events: [...], conference_permission: bool, company: {...}}
         """
         ids = self.resolve_ticker(ticker)
         company_id: int = ids["company_id"]
@@ -200,8 +204,9 @@ class KenshoClient:
 
         # 2. Conference / other key developments
         conf_events: list[dict] = []
+        conference_permission = True
         if include_conferences:
-            conf_events = self.get_conference_key_devs(
+            conf_events, conference_permission = self.get_conference_key_devs(
                 company_id=company_id,
                 start_date=start_date,
                 end_date=end_date,
@@ -223,4 +228,8 @@ class KenshoClient:
             return e.get("most_important_date_utc") or e.get("announced_date_utc") or e.get("datetime") or ""
 
         merged.sort(key=sort_key, reverse=True)
-        return merged
+        return {
+            "events": merged,
+            "conference_permission": conference_permission,
+            "company": ids,
+        }

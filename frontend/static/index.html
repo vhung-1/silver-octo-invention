@@ -109,6 +109,8 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .error-msg { background: rgba(224,92,92,0.1); border: 1px solid rgba(224,92,92,0.3); border-radius: var(--radius); padding: 10px 14px; color: var(--red); font-size: 12px; margin: 12px 16px; }
+    .warn-msg { background: rgba(240,167,50,0.1); border: 1px solid rgba(240,167,50,0.3); border-radius: var(--radius); padding: 10px 14px; color: var(--amber); font-size: 12px; margin: 12px 16px; line-height: 1.5; }
+    .warn-msg a { color: var(--amber); }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
@@ -302,6 +304,9 @@
         return;
       }
 
+      if (data.conference_permission === false) {
+        showWarning("Conference &amp; investor day transcripts require an upgraded Kensho subscription (key_devs permission). Showing earnings calls only. Contact <a href='mailto:llmreadyapi@kensho.com'>llmreadyapi@kensho.com</a> to request access.");
+      }
       renderList(data.events || []);
     } catch (err) {
       showError("Network error: " + err.message);
@@ -399,6 +404,11 @@
   function showError(msg) {
     document.getElementById("errorBox").innerHTML =
       `<div class="error-msg">${escHtml(msg)}</div>`;
+  }
+
+  function showWarning(html) {
+    document.getElementById("errorBox").innerHTML =
+      `<div class="warn-msg">${html}</div>`;
   }
 
   function formatDate(iso) {
